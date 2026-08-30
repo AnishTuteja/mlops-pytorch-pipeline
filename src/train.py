@@ -146,6 +146,7 @@ def run_training(config: dict[str, Any]) -> Path:
     train_loader, val_loader = get_dataloaders(
         data_dir=data_config["data_dir"],
         batch_size=int(training_config["batch_size"]),
+        dataset=data_config["dataset"],
     )
     optimizer = torch.optim.Adam(
         model.parameters(),
