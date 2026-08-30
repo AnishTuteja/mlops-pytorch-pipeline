@@ -1,0 +1,35 @@
+# Stage 1: install the pinned training dependencies in an isolated environment.
+FROM python:3.11-slim AS base
+
+ENV VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN python -m venv "$VIRTUAL_ENV"
+COPY requirements/train.txt ./requirements/train.txt
+RUN pip install --requirement requirements/train.txt
+
+
+# Stage 2: retain only the runtime environment and training source.
+FROM python:3.11-slim AS training
+
+ENV VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    TRAINING_CONFIG=/app/configs/training_config.yaml
+
+WORKDIR /app
+
+RUN useradd --create-home --uid 10001 trainer
+COPY --from=base /opt/venv /opt/venv
+COPY --chown=trainer:trainer src/ ./src/
+COPY --chown=trainer:trainer configs/ ./configs/
+
+USER trainer
+
+# Override TRAINING_CONFIG with a mounted YAML file for a deployment-specific run.
+ENTRYPOINT ["python", "src/train.py"]
